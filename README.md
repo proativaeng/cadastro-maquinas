@@ -1,80 +1,153 @@
-# Cadastro de Máquinas (PWA) · Triple R · PROativa
+# Cadastro de Máquinas · Triple R · PROativa
 
-App web instalável (PWA) para cadastrar clientes, máquinas e coletas de óleo, com login Microsoft, modo offline e sincronização com o SharePoint.
+**Endereço do app:** https://proativaeng.github.io/cadastro-maquinas/
 
-Conceito visual aprovado: https://claude.ai/artifact/1F8tgMkidUFrxJG4fTM3Y3
+## Para que serve
 
-## Decisões do projeto (25/11/2026)
+O Cadastro de Máquinas reúne num só lugar o histórico das coletas de óleo feitas nas máquinas dos nossos clientes.
 
-- **Login:** só contas do tenant TRBrasil (`@trbrasil.onmicrosoft.com`), via Microsoft Entra ID (MSAL).
-- **Hospedagem:** fica com o João. Qualquer hospedagem de arquivos estáticos com HTTPS serve.
-- **Acesso:** todos os usuários veem todos os clientes. Coletas podem ser editadas e excluídas.
-- **Dados:** 3 listas do SharePoint no mesmo site da pasta (canal Triple RRR · ProAtiva), criadas pelo próprio app no primeiro uso: `FM_Clientes`, `FM_Maquinas`, `FM_Coletas`.
-- **Arquivos:** pasta indicada pelo link abaixo, organizada como `Cliente / Máquina / AAAA-MM-DD_coleta-NUM / (fotos, anexos, relatório PDF)`.
-  - Link da pasta: https://trbrasil.sharepoint.com/:f:/s/home/IgA0SNtCds-9TaLycOME_Sw3AacEAeT05P7n0mxeHr-P-ts?e=AqdeVE
-  - Fotos: `maquina_AAAA-MM-DD_01.jpg`, reduzidas para até 1600 px.
-- **Máquina (fixo, editável):** Nome, Modelo, Fabricante.
-- **Coleta (histórico):** Nº da coleta (manual), Data, Usuário (conta logada), Temperatura, Pressão, Contaminantes (um ou mais), ISO 4406, Volume de óleo, Tipo de óleo, Conexão de pressão, Conexão de retorno, Tensão, Status, Observações, Fotos, Anexos.
-- **Campos com sugestão:** Tipo de óleo, Conexões, Tensão e Contaminante mostram valores já usados e aceitam valor novo.
-- **Status (manual, obrigatório):** Normal (verde), Atenção (laranja), Crítico (vermelho). Máquina sem coleta aparece com selo cinza "Sem coleta".
-- **Relatório:** PDF gerado ao salvar a coleta, salvo na pasta da coleta e aberto no app ao tocar na coleta.
-- **Offline:** tudo fica no aparelho (IndexedDB). Online, cada alteração sobe na hora. Offline, o técnico toca em **Sincronizar** quando voltar o sinal. Dados baixados não são apagados.
-- **Registro de usuário:** toda coleta grava o usuário logado; as listas guardam "Criado por" e "Modificado por".
-- **Fora da versão 1:** QR code, envio de e-mail, filtros avançados.
+Em campo, o técnico registra cada coleta pelo celular, com as medições, o status da máquina, fotos e documentos. Ao salvar, o app gera o relatório em PDF e guarda tudo no SharePoint da empresa, organizado por cliente e máquina.
 
-## Estrutura dos arquivos
+Com isso:
 
-| Arquivo | Função |
-| --- | --- |
-| `index.html` | Página única do app |
-| `config.js` | **Editar aqui:** IDs do Entra e link da pasta |
-| `styles.css` | Visual (claro, marinho + verde PROativa) |
-| `data.js` | Banco local (IndexedDB), Microsoft Graph e sincronização |
-| `app.js` | Telas e navegação |
-| `pdf.js` | Relatório PDF da coleta |
-| `sw.js` | Service worker (funciona offline) |
-| `manifest.webmanifest`, `icons/` | Instalação no celular |
+- **Fim das fichas em papel e planilhas soltas:** cada máquina tem o histórico completo, com data, responsável e status de cada coleta.
+- **Visão rápida da situação:** o status em cores (Normal, Atenção, Crítico) e o gráfico da ISO 4406 mostram como a máquina evolui ao longo do tempo.
+- **Relatório pronto na hora:** o PDF é gerado no momento em que a coleta é salva.
+- **Funciona sem internet:** dá para registrar a coleta em locais sem sinal e enviar depois.
+- **Tudo no SharePoint:** dados, fotos e relatórios ficam na pasta "Fichas de maquinas", acessíveis para toda a equipe.
 
-Sem `clientId` em `config.js`, o app abre em **modo demonstração**: dados de exemplo, salvos só no navegador.
+## Quem pode usar
 
-## Registro feito (25/11/2026)
+Qualquer pessoa com conta Microsoft da Triple R (`@trbrasil.onmicrosoft.com`). Todos os usuários veem todos os clientes.
 
-- App **Cadastro de Máquinas** no Entra, conta única (Triple R), SPA.
-- ID do aplicativo: `1a476634-931d-4e1d-a646-3045aa5fe599` · Locatário: `596a1584-d550-46d2-81c8-604438f498be`
-- URI de redirecionamento atual: `http://localhost:8770/`. **Ao hospedar, adicione o endereço final** em Authentication › SPA.
+## Instalar no celular
 
-## Passo a passo para colocar no ar
+O app não está na Play Store nem na App Store. Ele é instalado direto pelo navegador:
 
-### 1. Registrar o app no Microsoft Entra ID (uma vez, como administrador)
+- **Android:** abra o endereço do app no **Chrome** › toque no menu **⋮** › **Instalar app** (ou **Adicionar à tela inicial**).
+- **iPhone:** abra o endereço no **Safari** › toque em **Compartilhar** › **Adicionar à Tela de Início**.
 
-1. Abra https://entra.microsoft.com › **Identidade** › **Aplicativos** › **Registros de aplicativo** › **Novo registro**.
-2. Nome: `Cadastro de Máquinas`. Tipos de conta: **Somente contas deste diretório organizacional**.
-3. URI de redirecionamento: plataforma **SPA (aplicativo de página única)**, com o endereço onde o app vai ficar (ex.: `https://maquinas.trbrasil.com.br/`). Para testes locais, adicione também `http://localhost:8770/`.
-4. Copie o **ID do aplicativo (cliente)** e o **ID do diretório (locatário)** para `config.js`.
-5. Em **Permissões de API** › **Adicionar** › **Microsoft Graph** › **Permissões delegadas**: `User.Read`, `Sites.ReadWrite.All`, `Sites.Manage.All`.
-6. Clique em **Conceder consentimento do administrador para TRBrasil**.
+O ícone da Triple R aparece na tela do celular e o app abre em tela cheia, como qualquer outro aplicativo.
 
-`Sites.Manage.All` só é usada no primeiro acesso, para o app criar as 3 listas. Depois pode ser removida.
+No computador, basta abrir o endereço no navegador.
 
-### 2. Publicar os arquivos
+## Primeiro acesso
 
-Copie a pasta `pwa/` inteira para a hospedagem (precisa ser HTTPS). O endereço tem que ser igual ao URI de redirecionamento do passo 1.
+1. Abra o app e toque em **Entrar com a conta Microsoft**.
+2. Escolha a sua conta da Triple R. Se o celular ainda não tiver a conta, digite o e-mail e a senha de sempre.
+3. Pronto: o app carrega os clientes já cadastrados.
 
-### 3. Primeiro acesso
+Você continua conectado nas próximas vezes. Para sair, toque nas suas iniciais no canto superior direito e toque de novo para confirmar.
 
-Entre com a conta de administrador. O app encontra a pasta pelo link, cria as listas `FM_Clientes`, `FM_Maquinas` e `FM_Coletas` no mesmo site e começa a funcionar.
+## Como o app está organizado
 
-### 4. Instalar no celular
-
-- **Android (Chrome):** abra o endereço › menu ⋮ › **Instalar app**.
-- **iPhone (Safari):** abra o endereço › **Compartilhar** › **Adicionar à Tela de Início**.
-
-## Testar no computador
-
-Na pasta `pwa/`, rode um servidor local, por exemplo:
-
-```powershell
-npx --yes http-server -p 8770 -c-1
+```
+Clientes  ›  Máquinas do cliente  ›  Histórico de coletas da máquina  ›  Coleta
 ```
 
-Depois abra http://localhost:8770/.
+### Clientes
+
+- Lista de todos os clientes, com busca por nome ou cidade.
+- Toque em **+ Cliente** para cadastrar: nome, CNPJ, cidade, UF, contato, telefone e e-mail.
+
+### Máquinas
+
+- Ao tocar num cliente, aparecem as máquinas dele.
+- Cada máquina mostra a **data da última coleta**, **quem fez** e o **status**. Máquina que ainda não teve coleta aparece com o selo cinza "Sem coleta".
+- Toque em **+ Máquina** para cadastrar: nome, modelo e fabricante.
+
+### Histórico da máquina
+
+- **Gráfico da ISO 4406:** mostra a evolução da contaminação nas coletas.
+- **Linha do tempo:** todas as coletas, da mais recente para a mais antiga, com status, ISO e contaminantes.
+- Toque em **+ Nova coleta** para registrar uma nova.
+
+## Registrar uma coleta
+
+| Campo | Como preencher |
+| --- | --- |
+| Nº da coleta | Obrigatório. Número da amostra. |
+| Data | Obrigatório. Já vem com a data de hoje. |
+| Usuário | Preenchido sozinho com quem está conectado. |
+| Temperatura (°C) e Pressão (bar) | Medições no momento da coleta. |
+| Contaminantes | Pode ter mais de um. Escolha uma sugestão ou digite e toque em **＋**. Para tirar, toque no **✕** da etiqueta. |
+| ISO 4406 | Código no formato 18/16/13. |
+| Volume de óleo (L) e Tipo de óleo | O tipo de óleo sugere os valores já usados. |
+| Conexão de pressão, Conexão de retorno e Tensão | Também sugerem os valores já usados, e aceitam valor novo. |
+| Status | Obrigatório: **Normal** (verde), **Atenção** (laranja) ou **Crítico** (vermelho). |
+| Observações | Texto livre. |
+
+### Fotos e documentos
+
+Toque em **+ Anexar arquivo**. O celular oferece:
+
+- **Câmera:** para fotografar na hora.
+- **Arquivos ou galeria:** para escolher fotos já tiradas ou documentos (laudos, planilhas, PDFs).
+
+As **fotos** aparecem na **pré-visualização** logo acima do botão Salvar, entram no relatório PDF e podem ser removidas no **✕** antes de salvar. São até 10 fotos por coleta.
+
+Os **documentos** aparecem na lista de anexos e ficam guardados na pasta da coleta.
+
+### Salvar
+
+Toque em **Salvar e gerar relatório**. O app:
+
+1. Guarda a coleta.
+2. Gera o relatório em PDF, com os dados, as fotos e espaço para assinaturas.
+3. Envia tudo para o SharePoint.
+
+## Consultar, editar e excluir uma coleta
+
+Toque na coleta no histórico da máquina para ver todos os dados, as fotos e os anexos.
+
+- **Ver relatório PDF:** abre o relatório dentro do app.
+- **Gerar relatório novamente:** refaz o PDF com os dados atuais.
+- **Editar:** botão de edição no topo da tela. Ao salvar, o relatório é gerado de novo.
+- **Excluir coleta:** pede confirmação antes de apagar.
+
+## Usar sem internet
+
+O app funciona mesmo sem sinal, como numa área industrial ou subsolo.
+
+- Sem internet, a coleta, as fotos e o PDF ficam guardados no celular. A barra do topo avisa quantas alterações estão esperando envio.
+- Quando o sinal voltar, toque em **Sincronizar** para enviar tudo ao SharePoint.
+- Com internet, o envio é automático logo após salvar.
+- Os dados já baixados continuam no celular para consulta, mesmo offline.
+
+**Atenção:** não desinstale o app nem limpe os dados do navegador antes de sincronizar, ou as coletas ainda não enviadas serão perdidas.
+
+## Onde ficam os arquivos
+
+Na pasta **Fichas de maquinas** do SharePoint (Documentos › OPERACIONAL › Laboratório), organizados assim:
+
+```
+Fichas de maquinas/
+  Nome do Cliente/
+    Nome da Máquina/
+      2026-11-25_coleta-0148/
+        prensa-01_2026-11-25_01.jpg
+        prensa-01_2026-11-25_02.jpg
+        relatorio_coleta-0148.pdf
+        anexos/
+          laudo.pdf
+```
+
+## Dúvidas frequentes
+
+**O app pede login toda vez?**
+Não. Você continua conectado até tocar em sair.
+
+**Apareceu "Erro ao sincronizar". O que faço?**
+Confira a internet e toque em **Sincronizar** de novo. Nada é perdido: as alterações continuam guardadas no celular até o envio dar certo.
+
+**Duas pessoas podem mexer na mesma máquina?**
+Sim. Todos veem os mesmos clientes e máquinas, e cada coleta guarda quem a registrou.
+
+**O app atualiza sozinho?**
+Sim. Quando há uma versão nova, basta fechar e abrir o app com internet.
+
+## Suporte
+
+Dúvidas ou problemas: fale com o João Dantas.
+
+Documentação técnica (para quem mantém o app): [TECNICO.md](TECNICO.md).
