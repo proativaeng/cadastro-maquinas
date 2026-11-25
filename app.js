@@ -29,8 +29,8 @@
     opts = opts || {};
     const left = stack.length > 1 ? '<button class="ib" data-act="back" aria-label="Voltar">‹</button>' : '<img class="logo-h" src="icons/logo-h.png" alt="Triple R">';
     const right = opts.edit ? `<button class="ib" data-act="${opts.edit}" aria-label="Editar">✎</button>` :
-      (stack.length === 1 ? `<button class="ib" data-act="perfil" aria-label="Conta">${esc(initials(D.user() && D.user().name))}</button>` : '');
-    return `<header class="top"><div class="r">${left}<h1>${esc(title)}</h1>${right}</div>
+      (stack.length === 1 ? `<div class="who"><span>${esc((D.user() && D.user().name) || '')}</span><button class="out-ic" data-act="perfil" aria-label="Sair da conta" title="Sair"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg></button></div>` : '');
+    return `<header class="top"><div class="r">${left}${stack.length === 1 ? `<h1 class="sr">${esc(title)}</h1><span class="grow"></span>` : `<h1>${esc(title)}</h1>`}${right}</div>
       ${sub ? `<div class="sub">${sub}</div>` : ''}
       ${opts.nosync ? '' : `<div class="sync" id="syncbar"></div>`}
       ${D.DEMO && stack.length === 1 ? '<div class="demo">Modo demonstração: dados de exemplo, salvos só neste navegador.</div>' : ''}</header>`;
@@ -56,10 +56,9 @@
     const last = latestByMachine(col);
     const rows = cli.filter(c => !q || (c.nome + ' ' + c.cidade).toLowerCase().includes(q)).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')).map(c => {
       const ms = maq.filter(m => m.clienteAppId === c.appId);
-      const crit = ms.filter(m => last[m.appId] && last[m.appId].status === 'Crítico').length;
-      return `<button class="card" data-go="cliente" data-id="${esc(c.appId)}"><div class="av" style="background:${colorOf(c.nome)}">${esc(initials(c.nome))}</div>
-        <div class="t"><b>${esc(c.nome)}</b><span>${esc([c.cidade, c.uf].filter(Boolean).join(' – '))} · ${ms.length} máquina(s)</span></div>
-        ${crit ? `<span class="pill s-Crítico">${crit} crítica(s)</span>` : ''}<span class="chev">›</span></button>`;
+      return `<button class="card cli" data-go="cliente" data-id="${esc(c.appId)}"><div class="av" style="background:${colorOf(c.nome)}">${esc(initials(c.nome))}</div>
+        <div class="t"><b>${esc(c.nome)}</b><span>${ms.length} ${ms.length === 1 ? 'máquina' : 'máquinas'}</span></div>
+        <span class="chev">›</span></button>`;
     }).join('');
     return header('Clientes') + `<main class="body"><input class="search" id="q" type="search" placeholder="Buscar cliente" value="${esc(cur().q || '')}">
       ${rows || `<div class="empty"><b>${q ? 'Nenhum cliente encontrado' : 'Nenhum cliente ainda'}</b>${q ? 'Tente outro nome ou cidade.' : 'Toque em “+ Cliente” para cadastrar o primeiro.'}</div>`}</main>
@@ -75,7 +74,7 @@
       const l = last[m.appId];
       return `<button class="card" data-go="maquina" data-id="${esc(m.appId)}"><div class="t"><b>${esc(m.nome)}</b>
         <span>${esc([m.modelo, m.fabricante].filter(Boolean).join(' · ') || 'Sem modelo')}</span>
-        <span class="mono">${l ? esc(fmtDate(l.data) + ' · ' + (l.tecnico || '')) : 'Nenhuma coleta ainda'}</span></div>${pill(l && l.status)}</button>`;
+        <span class="mono">${l ? 'Última coleta: ' + esc(fmtDate(l.data)) : 'Nenhuma coleta ainda'}</span></div>${pill(l && l.status)}</button>`;
     }).join('');
     const sub = esc([[c.cidade, c.uf].filter(Boolean).join(' – '), c.contato, c.telefone].filter(Boolean).join(' · '));
     return header(c.nome, sub, { edit: 'editCliente' }) + `<main class="body">${rows || '<div class="empty"><b>Nenhuma máquina cadastrada</b>Toque em “+ Máquina”.</div>'}</main>
@@ -91,17 +90,17 @@
         <div class="h"><b>Coleta nº ${esc(k.numero)}</b>${pill(k.status)}</div>
         <span class="mono" style="color:var(--muted)">${esc(fmtDate(k.data))} · ${esc(k.tecnico)}</span>
         <div class="mono">${esc(['ISO ' + (k.iso || '—'), k.contaminante, k.temperatura && k.temperatura + ' °C'].filter(Boolean).join(' · '))}</div>
-        <div class="row"><span class="chip">${hasPdf ? 'Relatório PDF' : 'Relatório pendente'}</span>${nf ? `<span class="chip">${nf} foto(s)</span>` : ''}</div></button></div>`;
+        ${hasPdf || nf ? `<div class="row">${hasPdf ? '<span class="chip">Relatório PDF</span>' : ''}${nf ? `<span class="chip">${nf} foto(s)</span>` : ''}</div>` : ''}</button></div>`;
     }).join('');
     const sub = esc([m.modelo && 'Modelo ' + m.modelo, m.fabricante && 'Fabricante ' + m.fabricante].filter(Boolean).join(' · '));
     return header(m.nome, sub, { edit: 'editMaquina' }) + `<main class="body">
-      ${col.length > 1 ? `<div class="sec">Evolução do ISO 4406 (1º código)</div><div class="chart">${chart(col)}</div>` : ''}
+      ${col.length > 1 ? `<div class="sec">Evolução do ISO 4406</div><div class="chart">${chart(col)}</div>` : ''}
       <div class="sec">Coletas</div>${items ? `<div class="tl">${items}</div>` : '<div class="empty"><b>Nenhuma coleta ainda</b>Toque em “+ Nova coleta”.</div>'}</main>
       <button class="fab" data-go="coletaForm" data-maq="${esc(m.appId)}">+ Nova coleta</button>`;
   }
   const statusColor = s => (STATUS.find(x => x[0] === s) || [0, 'var(--pend)'])[1];
   function chart(col) {
-    const pts = col.slice().reverse().map(k => ({ d: k.data, v: parseInt((k.iso || '').split('/')[0], 10), s: k.status })).filter(p => !isNaN(p.v));
+    const pts = col.slice().reverse().map(k => ({ d: k.data, v: parseInt((k.iso || '').split('/')[1], 10), s: k.status })).filter(p => !isNaN(p.v));
     if (pts.length < 2) return '<div class="empty" style="padding:14px">ISO 4406 insuficiente para o gráfico.</div>';
     const W = 320, H = 130, L = 30, R = 12, T = 14, B = 26;
     let lo = Math.min(...pts.map(p => p.v)) - 1, hi = Math.max(...pts.map(p => p.v)) + 1;
@@ -194,7 +193,7 @@
     if (k && !form.oldPrev) {
       form.oldPrev = [];
       const saved = mergeFiles(k.fotos, (await D.filesOf(k.appId)).filter(f => f.kind === 'fotos'));
-      for (const f of saved) { try { const b = await D.fileBlob(f); if (b) form.oldPrev.push(URL.createObjectURL(b)); } catch (e) { } }
+      for (const f of saved) { try { const b = await D.fileBlob(f); if (b) form.oldPrev.push({ url: URL.createObjectURL(b), f }); } catch (e) { } }
     }
     const oldPrev = form.oldPrev || [];
     return header(k ? 'Editar coleta' : 'Nova coleta', esc(maq.nome) + (navigator.onLine ? '' : ' · salva no aparelho até sincronizar'), { nosync: true }) + `<main class="body"><div class="form">
@@ -215,7 +214,7 @@
         ${form.newAnexos.map((a, i) => `<div class="file"><span>${esc(a.name)}</span><button type="button" data-delanexo="${i}">Remover</button></div>`).join('')}
         <label class="btn out" for="inAnexo" style="text-align:center">+ Anexar arquivo</label><input id="inAnexo" type="file" multiple hidden></div></div>
       ${oldPrev.length + form.newFotos.length ? `<div class="f"><label>Pré-visualização das imagens (${oldPrev.length + form.newFotos.length} de até ${CFG.maxPhotos})</label><div class="photos">
-        ${oldPrev.map((u, i) => `<div class="ph"><img src="${u}" alt="Imagem salva ${i + 1}"></div>`).join('')}
+        ${oldPrev.map((o, i) => `<div class="ph"><img src="${o.url}" alt="Imagem salva ${i + 1}"><button type="button" data-deloldfoto="${i}" aria-label="Excluir imagem">✕</button></div>`).join('')}
         ${form.newFotos.map((p, i) => `<div class="ph"><img src="${p.url}" alt="Imagem nova ${i + 1}"><button type="button" data-delfoto="${i}" aria-label="Remover imagem">✕</button></div>`).join('')}</div></div>` : ''}
       <div class="actions"><button class="btn g" data-act="saveColeta">Salvar e gerar relatório</button></div></div></main>`;
   }
@@ -251,12 +250,18 @@
     const maq = await D.get('maquinas', form.maquinaAppId); const cli = await D.get('clientes', form.clienteAppId);
     const btn = document.querySelector('[data-act="saveColeta"]'); if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
     const pasta = `${safe(cli && cli.nome)}/${safe(maq.nome)}/${form.data}_coleta-${safe(form.numero)}`;
-    const rec = Object.assign({}, form, { pasta }); delete rec.newFotos; delete rec.newAnexos; delete rec.oldPrev;
-    rec.fotos = rec.fotos || []; rec.anexos = rec.anexos || []; rec.relatorio = rec.relatorio || [];
+    const rec = Object.assign({}, form, { pasta }); delete rec.newFotos; delete rec.newAnexos; delete rec.oldPrev; delete rec.removeFotos;
+    // Imagens excluídas na edição saem da coleta (e do SharePoint ao sincronizar).
+    const removed = form.removeFotos || [];
+    const isRemoved = f => removed.some(r => (r.key && r.key === f.key) || r.path === f.path);
+    rec.fotos = (rec.fotos || []).filter(f => !isRemoved(f)); rec.anexos = rec.anexos || []; rec.relatorio = rec.relatorio || [];
     const saved = await D.save('coletas', rec);
     const base = slug(maq.nome);
-    const existing = (await D.filesOf(saved.appId)).filter(f => f.kind === 'fotos').length;
-    let n = Math.max(saved.fotos.length, existing);
+    for (const f of removed) await D.removeFile(saved.appId, f);
+    // Próximo número de foto: maior número já usado (inclusive excluídas), para nunca repetir nome.
+    const used = saved.fotos.concat((await D.filesOf(saved.appId)).filter(f => f.kind === 'fotos'), removed)
+      .map(f => +((/_(\d+)\.jpe?g$/i.exec(f.name || '') || [])[1] || 0));
+    let n = Math.max(0, ...used);
     for (const p of form.newFotos) { n++; const name = `${base}_${form.data}_${String(n).padStart(2, '0')}.jpg`; await D.addFile(saved.appId, 'fotos', name, `${pasta}/${name}`, p.blob); }
     for (const a of form.newAnexos) await D.addFile(saved.appId, 'anexos', a.name, `${pasta}/anexos/${safe(a.name)}`, a.blob);
     await makePdf(saved.appId);
@@ -330,13 +335,14 @@
     }
   });
   $app.addEventListener('click', async e => {
-    const t = e.target.closest('[data-go],[data-act],[data-status],[data-delfoto],[data-delanexo],[data-delcont]'); if (!t) return;
+    const t = e.target.closest('[data-go],[data-act],[data-status],[data-delfoto],[data-deloldfoto],[data-delanexo],[data-delcont]'); if (!t) return;
     const d = t.dataset;
     if (d.act === 'addCont') { readForm(); if (addCont()) { await render(); document.getElementById('f_contNovo')?.focus(); } return; }
     if (d.delcont) { readForm(); const l = contList(form.contaminante); l.splice(+d.delcont, 1); form.contaminante = l.join(', '); return render(); }
     if (d.go) { form = null; return go({ v: d.go, id: d.id, cli: d.cli, maq: d.maq }); }
     if (d.status) { readForm(); form.status = d.status; return render(); }
     if (d.delfoto) { readForm(); form.newFotos.splice(+d.delfoto, 1); return render(); }
+    if (d.deloldfoto) { readForm(); form.removeFotos = (form.removeFotos || []).concat(form.oldPrev.splice(+d.deloldfoto, 1).map(o => o.f)); toast('Imagem será excluída ao salvar'); return render(); }
     if (d.delanexo) { readForm(); form.newAnexos.splice(+d.delanexo, 1); return render(); }
     const v = cur();
     switch (d.act) {

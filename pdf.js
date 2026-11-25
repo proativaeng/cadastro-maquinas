@@ -6,8 +6,12 @@
   const imgSize = url => new Promise(res => { const i = new Image(); i.onload = () => res({ w: i.width, h: i.height }); i.onerror = () => res({ w: 4, h: 3 }); i.src = url; });
   let logoCache;
   async function logo() {
-    if (logoCache !== undefined) return logoCache;
-    try { const b = await (await fetch('icons/logo-h.png')).blob(); const u = await toDataUrl(b); logoCache = { u, s: await imgSize(u) }; } catch (e) { logoCache = null; }
+    if (logoCache) return logoCache;
+    // Se falhar, não guarda a falha: tenta de novo no próximo relatório.
+    try {
+      const r = await fetch('icons/logo-h.png'); if (!r.ok) throw new Error('logo ' + r.status);
+      const u = await toDataUrl(await r.blob()); logoCache = { u, s: await imgSize(u) };
+    } catch (e) { console.warn('Logo do relatório indisponível', e); return null; }
     return logoCache;
   }
   const fmt = d => d ? d.slice(0, 10).split('-').reverse().join('/') : '—';
@@ -73,7 +77,7 @@
     const pages = doc.getNumberOfPages();
     for (let p = 1; p <= pages; p++) {
       doc.setPage(p); doc.setFillColor(...GREEN); doc.rect(0, 291, W, 6, 'F');
-      doc.setFontSize(8); doc.setTextColor(255, 255, 255); doc.text('Triple R · PROativa · Cadastro de Máquinas', M, 295);
+      doc.setFontSize(8); doc.setTextColor(255, 255, 255); doc.text('Triple R · ProAtiva', M, 295);
       doc.text(p + '/' + pages, W - M, 295, { align: 'right' });
     }
     return doc.output('blob');

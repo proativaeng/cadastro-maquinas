@@ -212,6 +212,13 @@
     await put('files', { key: uid(), coletaAppId: '', kind: 'cache', name: entry.name, path: entry.path, blob, uploaded: true });
     return blob;
   }
+  // Exclui uma foto/anexo: some do aparelho e é apagada do SharePoint na sincronização.
+  async function removeFile(coletaAppId, entry) {
+    for (const f of await all('files')) {
+      if ((entry.key && f.key === entry.key) || (f.path === entry.path && (f.coletaAppId === coletaAppId || f.kind === 'cache'))) await del('files', f.key);
+    }
+    if (!DEMO && entry.path) await enqueue({ op: 'delfile', path: entry.path });
+  }
   const encPath = p => p.split('/').map(encodeURIComponent).join('/');
 
   // ---------- Sincronização ----------
@@ -255,6 +262,8 @@
           const later = (await all('outbox')).some(x => x.seq !== o.seq && x.entity === o.entity && x.appId === o.appId);
           r._dirty = later; await put(o.entity, r);
         }
+      } else if (o.op === 'delfile') {
+        await graph('DELETE', '/drives/' + s.driveId + '/items/' + s.folderId + ':/' + encPath(o.path), null, { allow404: true });
       } else if (o.op === 'delete') {
         await graph('DELETE', '/sites/' + s.siteId + '/lists/' + s.lists[o.entity] + '/items/' + o.spId, null, { allow404: true });
       } else if (o.op === 'file') {
@@ -319,7 +328,7 @@
 
   window.Data = {
     DEMO, FIELDS, initAuth, login, logout, user: () => account,
-    all, get, save, remove, addFile, fileBlob, sync, seedDemo, ensureSetup,
+    all, get, save, remove, addFile, removeFile, fileBlob, sync, seedDemo, ensureSetup,
     onStatus: f => { listeners.add(f); f(status); return () => listeners.delete(f); },
     refreshPending, filesOf: async coletaAppId => (await all('files')).filter(f => f.coletaAppId === coletaAppId)
   };

@@ -37,7 +37,7 @@ No computador, basta abrir o endereço no navegador.
 2. Escolha a sua conta da Triple R. Se o celular ainda não tiver a conta, digite o e-mail e a senha de sempre.
 3. Pronto: o app carrega os clientes já cadastrados.
 
-Você continua conectado nas próximas vezes. Para sair, toque nas suas iniciais no canto superior direito e toque de novo para confirmar.
+Você continua conectado nas próximas vezes. Seu nome aparece no canto superior direito. Para sair, toque no ícone de sair ao lado do nome e toque de novo para confirmar.
 
 ## Como o app está organizado
 
@@ -53,7 +53,7 @@ Clientes  ›  Máquinas do cliente  ›  Histórico de coletas da máquina  ›
 ### Máquinas
 
 - Ao tocar num cliente, aparecem as máquinas dele.
-- Cada máquina mostra a **data da última coleta**, **quem fez** e o **status**. Máquina que ainda não teve coleta aparece com o selo cinza "Sem coleta".
+- Cada máquina mostra a **data da última coleta** e o **status**. Máquina que ainda não teve coleta aparece com o selo cinza "Sem coleta".
 - Toque em **+ Máquina** para cadastrar: nome, modelo e fabricante.
 
 ### Histórico da máquina
@@ -102,7 +102,7 @@ Toque na coleta no histórico da máquina para ver todos os dados, as fotos e os
 
 - **Ver relatório PDF:** abre o relatório dentro do app.
 - **Gerar relatório novamente:** refaz o PDF com os dados atuais.
-- **Editar:** botão de edição no topo da tela. Ao salvar, o relatório é gerado de novo.
+- **Editar:** botão de edição no topo da tela. Dá para mudar os dados, anexar mais fotos e documentos e **excluir imagens já salvas** (toque no **✕** da imagem na pré-visualização). Ao salvar, o relatório é gerado de novo e as imagens excluídas também são apagadas do SharePoint.
 - **Excluir coleta:** pede confirmação antes de apagar.
 
 ## Usar sem internet
@@ -149,3 +149,5 @@ Sim. Quando há uma versão nova, basta fechar e abrir o app com internet.
 ## Suporte
 
 Dúvidas ou problemas: fale com o João Dantas.
+
+Documentação técnica (para quem mantém o app): [TECNICO.md](TECNICO.md).
