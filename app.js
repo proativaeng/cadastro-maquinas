@@ -190,7 +190,13 @@
     const sugg = key => [...new Set(col.map(c => (c[key] || '').trim()).filter(Boolean))].sort().map(s => `<option value="${esc(s)}">`).join('');
     const fld = (key, label, attrs) => `<div class="f"><label for="f_${key}">${label}</label><input class="in" id="f_${key}" data-k="${key}" value="${esc(form[key] || '')}" ${attrs || ''}></div>`;
     const sfld = (key, label) => fld(key, label, `list="dl_${key}" autocomplete="off"`) + `<datalist id="dl_${key}">${sugg(key)}</datalist>`;
-    const oldFotos = k ? (k.fotos || []).length : 0;
+    // Imagens já salvas nesta coleta (para a pré-visualização ao editar).
+    if (k && !form.oldPrev) {
+      form.oldPrev = [];
+      const saved = mergeFiles(k.fotos, (await D.filesOf(k.appId)).filter(f => f.kind === 'fotos'));
+      for (const f of saved) { try { const b = await D.fileBlob(f); if (b) form.oldPrev.push(URL.createObjectURL(b)); } catch (e) { } }
+    }
+    const oldPrev = form.oldPrev || [];
     return header(k ? 'Editar coleta' : 'Nova coleta', esc(maq.nome) + (navigator.onLine ? '' : ' · salva no aparelho até sincronizar'), { nosync: true }) + `<main class="body"><div class="form">
       <div class="two">${fld('numero', 'Nº da coleta *')}${fld('data', 'Data *', 'type="date"')}</div>
       <div class="f"><label>Usuário</label><div class="in" style="color:var(--muted)">${esc(form.tecnico)}</div></div>
@@ -205,12 +211,12 @@
       <div>${sfld('tensao', 'Tensão')}</div>
       <div class="f"><label>Status</label><div class="seg">${STATUS.map(([s, c]) => `<button type="button" data-status="${s}" aria-pressed="${form.status === s}"><i style="background:${c}"></i>${s}</button>`).join('')}</div></div>
       <div class="f"><label for="f_observacoes">Observações</label><textarea class="in" id="f_observacoes" data-k="observacoes" rows="3">${esc(form.observacoes || '')}</textarea></div>
-      <div class="f"><label>Fotos ${oldFotos ? `(${oldFotos} já salva(s) + novas)` : ''} · até ${CFG.maxPhotos}</label><div class="photos">
-        ${form.newFotos.map((p, i) => `<div class="ph"><img src="${p.url}" alt="Foto ${i + 1}"><button type="button" data-delfoto="${i}" aria-label="Remover foto">✕</button></div>`).join('')}
-        ${oldFotos + form.newFotos.length < CFG.maxPhotos ? `<label class="add" for="inFoto">＋</label><input id="inFoto" type="file" accept="image/*" multiple hidden>` : ''}</div></div>
       <div class="f"><label>Arquivos anexos (laudo, planilhas…)</label><div class="files">
         ${form.newAnexos.map((a, i) => `<div class="file"><span>${esc(a.name)}</span><button type="button" data-delanexo="${i}">Remover</button></div>`).join('')}
         <label class="btn out" for="inAnexo" style="text-align:center">+ Anexar arquivo</label><input id="inAnexo" type="file" multiple hidden></div></div>
+      ${oldPrev.length + form.newFotos.length ? `<div class="f"><label>Pré-visualização das imagens (${oldPrev.length + form.newFotos.length} de até ${CFG.maxPhotos})</label><div class="photos">
+        ${oldPrev.map((u, i) => `<div class="ph"><img src="${u}" alt="Imagem salva ${i + 1}"></div>`).join('')}
+        ${form.newFotos.map((p, i) => `<div class="ph"><img src="${p.url}" alt="Imagem nova ${i + 1}"><button type="button" data-delfoto="${i}" aria-label="Remover imagem">✕</button></div>`).join('')}</div></div>` : ''}
       <div class="actions"><button class="btn g" data-act="saveColeta">Salvar e gerar relatório</button></div></div></main>`;
   }
   function readForm() { document.querySelectorAll('[data-k]').forEach(el => { form[el.dataset.k] = el.value.trim(); }); }
@@ -245,7 +251,7 @@
     const maq = await D.get('maquinas', form.maquinaAppId); const cli = await D.get('clientes', form.clienteAppId);
     const btn = document.querySelector('[data-act="saveColeta"]'); if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
     const pasta = `${safe(cli && cli.nome)}/${safe(maq.nome)}/${form.data}_coleta-${safe(form.numero)}`;
-    const rec = Object.assign({}, form, { pasta }); delete rec.newFotos; delete rec.newAnexos;
+    const rec = Object.assign({}, form, { pasta }); delete rec.newFotos; delete rec.newAnexos; delete rec.oldPrev;
     rec.fotos = rec.fotos || []; rec.anexos = rec.anexos || []; rec.relatorio = rec.relatorio || [];
     const saved = await D.save('coletas', rec);
     const base = slug(maq.nome);
@@ -310,14 +316,18 @@
     if (e.target.id === 'f_contNovo' && e.key === 'Enter') { e.preventDefault(); readForm(); if (addCont()) { await render(); document.getElementById('f_contNovo')?.focus(); } }
   });
   $app.addEventListener('change', async e => {
-    if (e.target.id === 'inFoto') {
-      const files = [...e.target.files]; const k = cur().id ? await D.get('coletas', cur().id) : null;
-      const room = CFG.maxPhotos - (k ? (k.fotos || []).length : 0) - form.newFotos.length;
-      for (const f of files.slice(0, room)) { try { const b = await shrink(f); form.newFotos.push({ blob: b, url: URL.createObjectURL(b) }); } catch (er) { toast(er.message); } }
-      if (files.length > room) toast(`Limite de ${CFG.maxPhotos} fotos.`);
+    if (e.target.id === 'inAnexo') {
+      // Imagens (câmera ou galeria) viram fotos da coleta: reduzidas, com pré-visualização e no relatório PDF.
+      // Os demais arquivos (laudos, planilhas…) continuam como anexos.
+      const files = [...e.target.files];
+      const isImg = f => /^image\/(jpeg|png|webp|gif|bmp)$/i.test(f.type) || (!f.type && /\.(jpe?g|png|webp)$/i.test(f.name));
+      const imgs = files.filter(isImg), docs = files.filter(f => !isImg(f));
+      docs.forEach(f => form.newAnexos.push({ name: f.name, blob: f }));
+      const room = CFG.maxPhotos - (form.oldPrev || []).length - form.newFotos.length;
+      for (const f of imgs.slice(0, Math.max(0, room))) { try { const b = await shrink(f); form.newFotos.push({ blob: b, url: URL.createObjectURL(b) }); } catch (er) { toast(er.message); } }
+      if (imgs.length > room) toast(`Limite de ${CFG.maxPhotos} imagens por coleta.`);
       readForm(); render();
     }
-    if (e.target.id === 'inAnexo') { [...e.target.files].forEach(f => form.newAnexos.push({ name: f.name, blob: f })); readForm(); render(); }
   });
   $app.addEventListener('click', async e => {
     const t = e.target.closest('[data-go],[data-act],[data-status],[data-delfoto],[data-delanexo],[data-delcont]'); if (!t) return;
