@@ -69,7 +69,7 @@
   async function initAuth() {
     if (DEMO) { account = { name: 'Usuário demonstração', username: 'demo@' + CFG.allowedDomain }; return account; }
     msalApp = new msal.PublicClientApplication({
-      auth: { clientId: CFG.clientId, authority: 'https://login.microsoftonline.com/' + CFG.tenantId, redirectUri: location.origin + location.pathname },
+      auth: { clientId: CFG.clientId, authority: 'https://login.microsoftonline.com/' + CFG.tenantId, redirectUri: new URL('./', location.href).href },
       cache: { cacheLocation: 'localStorage' }
     });
     try { const r = await msalApp.handleRedirectPromise(); if (r && r.account) msalApp.setActiveAccount(r.account); } catch (e) { console.warn(e); }
