@@ -197,19 +197,26 @@
   // Arquivo: guardado no aparelho e enviado na sincronização. kind: fotos | anexos | relatorio
   async function addFile(coletaAppId, kind, name, path, blob) {
     const key = uid();
+    // Arquivo com o mesmo caminho (ex.: relatório gerado de novo) substitui a versão antiga guardada no aparelho.
+    for (const f of await all('files')) if (f.path === path) await del('files', f.key);
     await put('files', { key, coletaAppId, kind, name, path, blob, uploaded: false, createdAt: nowIso() });
     await enqueue({ op: 'file', key });
     return key;
   }
   async function fileBlob(entry) {
-    // entry: {name, path, key?}. Primeiro procura no aparelho; se não tiver, baixa do SharePoint e guarda.
-    const files = await all('files');
-    const local = files.find(f => (entry.key && f.key === entry.key) || (f.path === entry.path && f.blob));
-    if (local && local.blob) return local.blob;
-    if (DEMO || !navigator.onLine) return null;
+    // entry: {name, path, key?, etag?}. Primeiro procura no aparelho; se não tiver, baixa do SharePoint e guarda.
+    // Cópia baixada (cache) só vale se for a mesma versão do SharePoint (etag); senão baixa de novo.
+    const files = (await all('files')).filter(f => f.blob);
+    const own = files.find(f => entry.key && f.key === entry.key) || files.find(f => f.path === entry.path && f.kind !== 'cache' && (!f.uploaded || !entry.etag || !f.etag || f.etag === entry.etag));
+    if (own) return own.blob;
+    const cache = files.filter(f => f.path === entry.path && f.kind === 'cache');
+    const fresh = cache.find(f => !entry.etag || f.etag === entry.etag);
+    if (fresh) return fresh.blob;
+    if (DEMO || !navigator.onLine) return cache.length ? cache[0].blob : null; // offline: mostra a última cópia que tiver
     const s = await ensureSetup();
     const blob = await graph('GET', '/drives/' + s.driveId + '/items/' + s.folderId + ':/' + encPath(entry.path) + ':/content', null, { blob: true });
-    await put('files', { key: uid(), coletaAppId: '', kind: 'cache', name: entry.name, path: entry.path, blob, uploaded: true });
+    for (const f of cache) await del('files', f.key);
+    await put('files', { key: uid(), coletaAppId: '', kind: 'cache', name: entry.name, path: entry.path, blob, uploaded: true, etag: entry.etag || '' });
     return blob;
   }
   // Exclui uma foto/anexo: some do aparelho e é apagada do SharePoint na sincronização.
@@ -270,10 +277,10 @@
         const f = await get('files', o.key);
         if (f && !f.uploaded) {
           const up = await graph('PUT', '/drives/' + s.driveId + '/items/' + s.folderId + ':/' + encPath(f.path) + ':/content', f.blob);
-          f.uploaded = true; f.webUrl = up.webUrl; await put('files', f);
+          f.uploaded = true; f.webUrl = up.webUrl; f.etag = up.eTag || ''; await put('files', f);
           const c = await get('coletas', f.coletaAppId);
           if (c) {
-            const entry = { name: f.name, path: f.path, url: up.webUrl, key: f.key };
+            const entry = { name: f.name, path: f.path, url: up.webUrl, key: f.key, etag: up.eTag || '' };
             if (f.kind === 'relatorio') c.relatorio = [entry];
             else { c[f.kind] = (c[f.kind] || []).filter(x => x.key !== f.key && x.path !== f.path).concat([entry]); }
             await put('coletas', c);
