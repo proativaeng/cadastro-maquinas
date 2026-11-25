@@ -149,5 +149,3 @@ Sim. Quando há uma versão nova, basta fechar e abrir o app com internet.
 ## Suporte
 
 Dúvidas ou problemas: fale com o João Dantas.
-
-Documentação técnica (para quem mantém o app): [TECNICO.md](TECNICO.md).
